@@ -1,0 +1,1169 @@
+---
+title: "World Demographics"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme : "spacelab"
+    
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readr)
+library(plotly)
+library(tidyverse)
+library(forcats)
+library(ggplot2)
+library(RColorBrewer)
+library(crosstalk)
+library(ggthemes)
+library(extrafont)
+```
+
+```{r, datasets}
+#Data frame Population
+file_Pop<- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\Population_surface_area_density.csv"
+PopDenSurf<- read.csv(file_Pop)
+
+#Data frame Fertility and growth
+file_growth<- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\PopGrowthIndicatofFertilityMortality.csv"
+df_growth <- read.csv(file = "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\PopGrowthIndicatofFertilityMortality.csv", header = TRUE)
+
+#Data frame Research
+file_research <- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\research.csv"
+df_research <- read.csv(file_research, header = TRUE)
+
+#Data frame GDP
+file_GDP <- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\syb65__gdp1.csv"
+df_GDP <- read.csv(file_GDP)
+
+#Data frame Gross Value Added
+file_gValueAdded <- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\syb65__grossvalueadded1.csv"
+df_gValueAdded <- read_csv(file_gValueAdded)
+
+#data frame for CO2
+file_CO2 <- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\CO2.csv"
+df_CO2 <- read.csv(file_CO2, header = TRUE)
+
+```
+
+```{r, data cleaning, echo=FALSE}
+df_GDP <- df_GDP %>%
+  select(-'X.3', -'X.4') %>%
+  rename(Code = 'T14',
+         Region= 'Gross.domestic.product.and.gross.domestic.product.per.capita',
+         Year= 'X',
+         GDP = 'X.1',
+         Value = 'X.2')
+str(df_GDP)
+
+df_GDP <- df_GDP[2:length(df_GDP$Code),]
+
+df_GDP <- df_GDP %>%
+  mutate(Code= as.integer(Code),
+         Year= as.integer(Year),
+         Value= as.numeric(Value))
+
+df_GDP_ordered <- df_GDP %>%
+ pivot_wider(names_from = GDP, values_from = Value)
+
+str(df_GDP_ordered)
+
+df_GDP_ordered <- df_GDP_ordered %>%
+  rename(GDP_in_current_prices_millions_USD = "GDP in current prices (millions of US dollars)",
+         GDP_per_Cap_USD = "GDP per capita (US dollars)",
+         GDP_in_cte_2010_prices_millionsUSD= "GDP in constant 2010 prices (millions of US dollars)",
+         GDP_realRates_growth_percent= "GDP real rates of growth (percent)")
+df_gValueAdded <- df_gValueAdded %>%
+  select(-Footnotes, -Source) %>%
+  rename(GrossValueAddedPerc = "Gross Value added by kind of economic activity",
+         Percentage_distribution= "Value")
+
+
+
+#change"," by "."
+PopDenSurf$Value <- gsub(",", ".", PopDenSurf$Value)
+
+#convert Value variable into numeric
+PopDenSurf <- PopDenSurf %>%
+  mutate(Value = as.numeric(Value))
+#Transform Series variable into a factor
+PopDenSurf <- PopDenSurf %>%
+  mutate(Series = as.factor(Series))
+
+#Change variable name from Series to Metric
+PopDenSurf <- PopDenSurf %>%
+  rename(Metric = Series)
+# Define the new names
+new_names <- c(
+  "Pop_0_14_percentage",
+  "Pop_60plus_percentage",
+  "Pop_density_per_km",
+  "Total_Pop_midyear_estimates_millions",
+  "Pop_midyear_estimates_females_millions",
+  "Pop_midyear_estimates_males_millions",
+  "Sex_ratio_males_per_100_females",
+  "Surface_area_thousand_km2")
+
+# Assign the new names to the levels
+levels(PopDenSurf$Metric) <- new_names
+
+# Verify the updated levels
+levels(PopDenSurf$Metric)
+# convert Metric levels into columns
+transpo_df <- 
+PopDenSurf %>%
+  select(-Footnotes, -Source)%>%
+  pivot_wider(names_from = Metric, values_from = Value)
+
+transpo_sex <- pivot_longer(data = transpo_df,
+                            cols = c(Pop_midyear_estimates_males_millions, Pop_midyear_estimates_females_millions),
+                            names_to = "Sex",
+                            values_to = "Population")
+
+#Database Growth statistics
+df_growth <- df_growth[2:length(df_growth$T04),]
+
+df_growth_ordered <- df_growth %>%
+  select(-X.3, -X.4)%>%
+  pivot_wider(names_from = X.1, values_from = X.2)
+str(df_growth_ordered)
+#Rename Variables
+df_growth_ordered <- df_growth_ordered %>%
+  rename(
+    Pop_annual_rate_inc_percent = `Population annual rate of increase (percent)`,
+    Tot_fert_rate_child_p_w = `Total fertility rate (children per women)`,
+    Infant_mort_f_both_sex_p_thousen_live_birth = `Infant mortality for both sexes (per 1,000 live births)`,
+    Mat_mort_ratio_death_p_100000_population = `Maternal mortality ratio (deaths per 100,000 population)`,
+    Life_exp_at_birth_bothSex_inYears = `Life expectancy at birth for both sexes (years)`,
+    Life_exp_at_birth_Males = `Life expectancy at birth for males (years)`,
+    Life_exp_at_birth_Females = `Life expectancy at birth for females (years)`
+  )
+
+df_growth_ordered <- df_growth_ordered %>%
+  rename(Code = T04, 
+         Region = Population.growth.and.indicators.of.fertility.and.mortality,
+         Year = X)
+
+# Convert variable into Factor, numeric or integers
+df_growth_ordered <- df_growth_ordered %>%
+  mutate(Pop_annual_rate_inc_percent= as.numeric(Pop_annual_rate_inc_percent))
+
+df_growth_ordered <- df_growth_ordered %>%
+  mutate(Tot_fert_rate_child_p_w= as.numeric(Tot_fert_rate_child_p_w), 
+         Infant_mort_f_both_sex_p_thousen_live_birth = as.numeric(Infant_mort_f_both_sex_p_thousen_live_birth),
+         Mat_mort_ratio_death_p_100000_population = as.numeric(Mat_mort_ratio_death_p_100000_population),
+         Life_exp_at_birth_bothSex_inYears = as.numeric(Life_exp_at_birth_bothSex_inYears),
+         Life_exp_at_birth_Males = as.numeric(Life_exp_at_birth_Males),
+         Life_exp_at_birth_Females =as.numeric(Life_exp_at_birth_Females))
+
+df_growth_ordered <- df_growth_ordered %>%
+  mutate(Code = as.integer(Code),
+         Year = as.integer(Year))
+
+#JOINING DATAFRAMES df_growth_ordered and transpo_age--> growth_age
+#POPULATION AGE DISTRIBUTION, transformation df and new column "Pop_15_59_percentage
+transpo_df <- transpo_df %>%
+  mutate(Pop_15_59_percentage= 100 - (Pop_0_14_percentage + Pop_60plus_percentage))
+
+#transformation df 
+transpo_age <- pivot_longer(data = transpo_df,
+                            cols = c(Pop_0_14_percentage, Pop_60plus_percentage, Pop_15_59_percentage),
+                            names_to = "Pop_age_distrib",
+                            values_to = "Percentage_age_distrib")
+
+#Pop_age_distrib into categorical
+transpo_age<- transpo_age %>%
+  mutate(Pop_age_distrib = as.factor(Pop_age_distrib))
+
+
+transpo_age <- transpo_age %>%
+  mutate(Pop_age_distrib = recode(Pop_age_distrib,
+                                  "Pop_0_14_percentage" = "Age: 0-14",
+                                  "Pop_15_59_percentage" = "Age: 15-59",
+                                  "Pop_60plus_percentage" = "Age: 60-plus"))
+
+transpo_age1<- transpo_age %>%
+  rename(Code = Region.Country.Area, Region = Population..density.and.surface.area)
+
+growth_age <- transpo_age1 %>%
+  inner_join(df_growth_ordered, by = c("Code", "Region", "Year"))
+excluded_values <- c(1, 2, 15, 202, 14, 17, 18, 11, 19, 21, 419, 29, 13, 5, 142, 143, 30, 62, 35, 34, 145, 150, 151, 154, 39, 155, 158, 9, 53, 54, 57, 61)
+
+growth_age_country <- growth_age %>%
+  filter(!Code %in% excluded_values)
+
+#data frame for CO2
+df_CO2ordered <- df_CO2 %>%
+  select(-X.3, -X.4) %>%
+  rename(Code = 'T27',
+         Region= 'CO2.emission.estimates',
+         Year= 'X',
+         CO2_emission_estimates = 'X.1',
+         Value = 'X.2')
+df_CO2ordered <- df_CO2ordered[2:length(df_CO2ordered$Code),]
+
+df_CO2ordered <- df_CO2ordered %>% 
+  pivot_wider(names_from = CO2_emission_estimates, values_from = Value)
+
+df_CO2ordered <- df_CO2ordered %>%
+  rename(Emissions_per_capita_metric_tons_CO = 'Emissions per capita (metric tons of carbon dioxide)',
+         Emissions_thousand_metric_tons_CO = 'Emissions (thousand metric tons of carbon dioxide)')
+
+df_CO2ordered <- df_CO2ordered %>%
+  mutate(Code = as.integer(Code),
+         Year= as.integer(Year),
+         Emissions_thousand_metric_tons_CO= as.numeric(Emissions_thousand_metric_tons_CO),
+         Emissions_per_capita_metric_tons_CO= as.numeric(Emissions_per_capita_metric_tons_CO))
+
+excluded_values <- c(1, 2, 15, 202, 14, 17, 18, 11, 19, 21, 419, 29, 13, 5, 142, 143, 30, 62, 35, 34, 145, 150, 151, 154, 39, 155, 158, 9, 53, 54, 57, 61)
+df_GDP_country<- df_GDP_ordered %>%
+    filter(!Code %in% excluded_values)
+
+CO2_GDP <- df_CO2ordered %>%
+  inner_join(df_GDP_country, by = c("Code", "Region", "Year"))
+
+#Data frame RESEARCH
+df_research <- df_research %>%
+  select(-X.3, -X.4) %>%
+  rename(Code = 'T26',
+         Region= 'Population.employed.in.research.and.development..R.D.',
+         Year= 'X',
+         Population_employed_in_research_and_development_RD = 'X.1',
+         Value = 'X.2')
+df_research <- df_research[2:length(df_research$Code),]
+
+df_research <- df_research %>%
+  mutate(Code = as.integer(Code),
+         Year = as.integer(Year),
+         Value = as.numeric(Value))
+
+df_research <- df_research %>%
+  pivot_wider(names_from = Population_employed_in_research_and_development_RD, values_from = Value)
+
+df_research <- df_research %>%
+  rename(RD_personnel_Total = 'R & D personnel: Total (number in full-time equivalent)',
+         RD_personnel_Researchers_total = 'R & D personnel: Researchers - total (number in full-time equivalent)',
+         RD_personnel_Researchers_women = 'R & D personnel: Researchers - women (number in full-time equivalent)',
+         RD_personnel_Technicians_total = 'R & D personnel: Technicians - total (number in full-time equivalent)',
+         RD_personnel_Technicians_women = 'R & D personnel: Technicians - women (number in full-time equivalent)',
+         RD_personnel_Other_supp_staff = 'R & D personnel: Other supporting staff - total (number in full-time equivalent)',
+         RD_personnel_Other_supp_staff_women= 'R & D personnel: Other supporting staff - women (number in full-time equivalent)')
+
+Research_GDP <- df_research %>%
+  inner_join(df_GDP_country, by = c("Code", "Region", "Year"))
+transpo_Countries <- transpo_df %>%
+  filter(!Region.Country.Area %in% excluded_values)
+Pop<- transpo_Countries %>%
+  rename(Code = "Region.Country.Area",
+         Region = "Population..density.and.surface.area")
+Research_GDP_pop<- Research_GDP%>%
+  inner_join(Pop, by=c("Code", "Region", "Year"))
+
+
+```
+
+Population {data-navmenu=Population}
+==========================================
+
+Column {data-width=700 .tabset}
+-----------------------------------------------------------------------
+
+### World Population 2022
+
+```{r, echo=FALSE}
+#CHORPLETH WORLD MAP, year2022, Total Population
+#OPTION 1
+# Creating a new DF only with countries (all regions are excluded)
+
+excluded_values <- c(1, 2, 15, 202, 14, 17, 18, 11, 19, 21, 419, 29, 13, 5, 142, 143, 30, 62, 35, 34, 145, 150, 151, 154, 39, 155, 158, 9, 53, 54, 57, 61)
+
+transpo_Countries <- transpo_df %>%
+  filter(!Region.Country.Area %in% excluded_values)
+
+fontStyle <- list(family= "Bookman",
+                     size= 12,
+                  color= "black")
+label<-list(bordercolor = "transparent",
+            bgcolor = "#EEEEEE",
+            font =fontStyle)
+
+transpo_Countries %>%
+  select(Population..density.and.surface.area, Year, Total_Pop_midyear_estimates_millions) %>%
+  filter(!Year == "2017") %>%
+  mutate(hover = paste0(Population..density.and.surface.area, "\n", Total_Pop_midyear_estimates_millions)) %>%
+  plot_geo(locationmode= 'country names', 
+           frame = ~Year) %>%
+  add_trace(z= ~Total_Pop_midyear_estimates_millions,
+            zmin = 0,
+            zmax = max(transpo_Countries$Total_Pop_midyear_estimates_millions, na.rm = TRUE),
+            locations= ~Population..density.and.surface.area,
+            colorbar= list(title= "Population in millions"),
+            text = ~ hover,
+            hoverinfo = 'text') %>%
+  layout(font = list(family= "Bookman",
+                     color= "gray25",
+                     size= 12)) %>%
+  style(hoverlabel = label)
+```
+
+> The herein used data can be found in the [United Nations, Department of Economic and Social Affairs (https://unstats.un.org/UNSDWebsite/Publications/StatisticalYearbook/)
+Statistics]
+
+### World Population density (per km²), 2022
+
+```{r, echo=FALSE}
+label<-list(bordercolor = "transparent",
+            bgcolor = "#EEEEEE",
+            font =fontStyle)
+
+transpo_Countries %>%
+  select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
+  filter(Year == 2022) %>%
+  # mutate(hover = paste0(Population..density.and.surface.area, "\n", round(log10(Pop_density_per_km), 2))) %>%
+  plot_geo(locationmode = "country names") %>%
+  add_trace(
+    z = ~log10(Pop_density_per_km),
+    locations = ~Population..density.and.surface.area,
+    visible = F,
+    # text = ~hover,
+    # hoverinfo = 'text',
+    colorscale = "Viridis",
+    colorbar = list(
+      title = "Log10(Population <br> Density per km²)",
+      font = list(family = "Bookman", size = 12)
+    )
+  ) %>%
+  add_trace(
+    z = ~Pop_density_per_km,
+    locations = ~Population..density.and.surface.area,
+    visible = F,
+    # text = ~hover,
+    # hoverinfo = 'text',
+    colorscale = "Viridis",
+    colorbar = list(
+      title = "Population <br> Density per km²",
+      font = list(family = "Bookman", size = 12)
+    )
+  ) %>%
+  layout(
+    font = list(family = "Bookman", color = "gray25", size = 12), 
+    updatemenus = list(
+      list(
+        y = 0.7,
+        buttons = list(
+          list(
+            method = "restyle",
+            args = list("visible", list(TRUE, FALSE)),
+            label = "Log10(Pop/km²)"
+          ),
+          list(
+            method = "restyle",
+            args = list("visible", list(FALSE, TRUE)),
+            label = "Pop/km²"
+          )
+        )
+      )
+    )
+  ) %>%
+  style(hoverlabel = label)
+
+# fontStyle <- list(family= "Bookman",
+#                      size= 12,
+#                   color= "black")
+# label<-list(bordercolor = "transparent",
+#             bgcolor = "#EEEEEE",
+#             font =fontStyle)
+# 
+# transpo_Countries %>%
+#   select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
+#   filter(Year == 2022) %>%
+#   mutate(hover = paste0(Population..density.and.surface.area, "\n", round(log10(Pop_density_per_km), 2))) %>%
+#   plot_geo(locationmode = "country names") %>%
+#   add_trace(z = ~log10(Pop_density_per_km),
+#             locations = ~Population..density.and.surface.area,
+#             text = ~ hover,
+#             hoverinfo = 'text') %>%
+#   colorbar(title = "log10(Population <br> Density per km²)", font= list(family= "Bookman", size= 12)) %>%
+#   layout(font = list(family= "Bookman",
+#           color= "gray25",
+#           size= 12)) %>%
+#   style(hoverlabel = label)
+
+```
+
+### Territories with highest and lowest population density per km²
+
+```{r, echo=FALSE}
+SuperSubpobl <- transpo_Countries %>%
+    select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
+    mutate(logDenKm = log10(Pop_density_per_km)) %>%
+    filter(Year == 2022) %>%  
+  mutate(Rank = rank(desc(Pop_density_per_km))) %>%
+    filter(Rank <= 10 | Rank > n() - 10) %>%
+    arrange(Pop_density_per_km) 
+
+SuperSubpobl %>%
+  filter(!is.na(Pop_density_per_km)) %>%
+  mutate(Population..density.and.surface.area = fct_reorder(Population..density.and.surface.area, Pop_density_per_km, .desc = TRUE)) %>%
+    plot_ly(x = ~Pop_density_per_km, y = ~Population..density.and.surface.area,
+          type = 'bar',
+          hoverinfo = "text",
+          text = ~paste("Area: ", Population..density.and.surface.area, "<br>Population / km²: ", Pop_density_per_km),
+          marker = list(color = ~Pop_density_per_km)) %>%
+  layout(xaxis = list(title = "Population density per km²", showgrid = FALSE),
+         yaxis = list(title = ""))
+```
+
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### World Population 2022
+
+```{r, echo=FALSE}
+WorldPop22 <-  transpo_df %>% 
+              filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
+              pull(Total_Pop_midyear_estimates_millions)
+
+valueBox(WorldPop22,
+  caption= "World Population 2022 (in millions)",
+  icon= 'fa fa-globe')
+```
+
+### Estimated World Population over time
+
+```{r, echo=FALSE}
+transpo_df %>%
+  filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
+  plot_ly(x = ~ as.factor(Year), y = ~ Total_Pop_midyear_estimates_millions,
+          hoverinfo = "text",
+          text = ~paste("Year:", Year, "<br>",
+                        "Population:", Total_Pop_midyear_estimates_millions)) %>%
+  add_bars(marker = list(color = "gray"),
+           textposition = "none") %>% 
+  layout(xaxis= list(title= "Year"),
+         yaxis= list(title="Mid-year population estimates and projections (millions)",
+         showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+         color= "gray25",
+         size= 12))  
+
+
+```
+
+### World growth rate
+
+```{r, echo=FALSE}
+pop2022 <-  transpo_df %>% 
+              filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
+              pull(Total_Pop_midyear_estimates_millions)
+
+pop2010 <- transpo_df %>% 
+              filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2010) %>%
+              pull(Total_Pop_midyear_estimates_millions)
+worldGrowthRate <- round(((pop2022 - pop2010) / pop2010) * 100, 2)
+
+valueBox(worldGrowthRate,
+  caption= "% World Growth Rate (2010-2022)",
+  icon= 'fa fa-percent')
+```
+Population by Gender {data-navmenu=Population}
+==================================================================
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+### World Population by gender.
+```{r, echo=FALSE}
+transpo_sex %>%
+  filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
+  mutate(Sex = fct_recode(Sex,
+                          "Males" = "Pop_midyear_estimates_males_millions",
+                          "Females" = "Pop_midyear_estimates_females_millions")) %>%
+  group_by(Sex) %>%
+  plot_ly(x = ~as.factor(Year), y = ~Population,  type = "bar",
+          split = ~Sex,
+          color = ~Sex,
+          colors = c("#a8a5a4", "#827e7d"), 
+          hoverinfo = "text",
+          text = ~paste("Year:", Year, "<br>",
+                        "Population:", Population)) %>%
+  layout(barmode = "stack", 
+         xaxis = list(title = "Year", showgrid= F),
+         yaxis = list(title = "Population estimates (millions)",            
+         showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+          color= "gray25",
+          size= 12)) 
+
+```
+
+### World Sex ratio Males per 100 Females, 2022.
+
+```{r sex_ratio_males_per_women, echo=FALSE}
+SexRatio <- transpo_df %>%
+  filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
+  pull(Sex_ratio_males_per_100_females)
+
+valueBox(SexRatio,
+  caption= "World Sex ratio Males per 100 Females (2022)",
+  icon= 'fa fa-percent')
+
+
+# 
+# MalesFemales <- transpo_df %>%
+#   filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
+#   ggplot(aes(x= as.factor(Year), y = Sex_ratio_males_per_100_females)) +
+#   geom_point() +
+#   geom_hline(yintercept = 100, linetype = "dashed", color = "red") +
+#   ylim(80, 120) +
+#   theme_gris() +
+#   theme(axis.line.y = element_blank(),
+#         axis.line.x = element_line("gray20"),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         plot.background = element_rect(color = "white")) +
+#   labs(x = "Year", y = "Sex ratio males / 100 females") 
+# 
+# ggplotly(MalesFemales)
+
+```
+### World Life expectancy by gender.
+
+```{r, echo=FALSE}
+LifeExpBySex_df <- pivot_longer(data = df_growth_ordered,
+                            cols = c(Life_exp_at_birth_Males, Life_exp_at_birth_Females),
+                            names_to = "Sex_Life_exp",
+                            values_to = "LifeExpectancyYears")
+
+LifeExpBySex_df %>%
+  filter(Region == "Total, all countries or areas") %>%
+  group_by(Year) %>%
+  mutate(Sex_Life_exp = fct_recode(Sex_Life_exp,
+                          "Males" = "Life_exp_at_birth_Males",
+                          "Females" = "Life_exp_at_birth_Females")) %>%
+  plot_ly(x = ~ as.factor(Year), y = ~ LifeExpectancyYears, type = "bar",
+          split = ~Sex_Life_exp,
+          color = ~Sex_Life_exp,
+          colors = c("#a8a5a4", "#827e7d"),
+          hoverinfo = "text",
+          text = ~paste("Year:", Year, "<br>",
+                        "Life Expectancy:", LifeExpectancyYears)) %>%
+  layout(xaxis = list(title = "Years", showgrid= F),
+         yaxis = list(title = "Life expectancy in Years", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Countries with highest and lowest males/females ratios, 2022.
+```{r topMalesTopfem, echo=FALSE}
+theme_gris <- function(){
+theme_minimal() +
+theme(
+text = element_text(family = "Bookman", color = "gray25"),
+plot.subtitle = element_text(size = 12),
+plot.caption = element_text(color = "gray30"),
+plot.background = element_rect(fill = "gray95"),
+panel.grid = element_blank(),
+panel.border = element_blank(),
+axis.line.y = element_blank(),
+axis.ticks.y = element_blank()
+)}
+
+m_l_Males <- transpo_Countries %>%
+  filter(Sex_ratio_males_per_100_females< 90 | Sex_ratio_males_per_100_females > 110)
+
+M_arranged <-m_l_Males %>%
+  select(Year, Sex_ratio_males_per_100_females, Population..density.and.surface.area) %>%
+  filter(Year == 2022) %>%
+  arrange(Sex_ratio_males_per_100_females)
+
+
+palette <- brewer.pal(5, "RdYlBu")[-(2:4)]
+
+M_arranged %>%
+  mutate(Population..density.and.surface.area = fct_reorder(Population..density.and.surface.area, Sex_ratio_males_per_100_females, .desc= TRUE)) %>%
+  ggplot(aes(x = Sex_ratio_males_per_100_females, y= Population..density.and.surface.area, color =Sex_ratio_males_per_100_females)) +
+  geom_point(size = 6)+
+  geom_segment(aes(xend = 0, yend= Population..density.and.surface.area), linewidth = 2)+
+  geom_text(aes(label = Sex_ratio_males_per_100_females), color = "black", size = 2.5) +
+  scale_color_gradientn(colors = palette) +
+  theme_classic() +
+  theme_gris()+
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        axis.title = element_blank(),
+        plot.background = element_rect(color = "white")) +
+  geom_vline(xintercept = 100, color = "grey40", linetype = 3) +
+  labs(x = "Sex ratio males/100 females", color = "Males / 100 Females")
+
+```
+
+> Countries with ratios < 90 and > 110, were selected for this graph.
+
+Population Age Distribution {data-navmenu=Population}
+============================================================
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+### World Age Distribution Percentage over time
+
+```{r, echo=FALSE}
+#POPULATION AGE DISTRIBUTION, transformation df and new column "Pop_15_59_percentage
+transpo_df <- transpo_df %>%
+  mutate(Pop_15_59_percentage= 100 - (Pop_0_14_percentage + Pop_60plus_percentage))
+
+#transformation df 
+transpo_age <- pivot_longer(data = transpo_df,
+                            cols = c(Pop_0_14_percentage, Pop_60plus_percentage, Pop_15_59_percentage),
+                            names_to = "Pop_age_distrib",
+                            values_to = "Percentage_age_distrib")
+
+#Pop_age_distrib into categorical
+transpo_age<- transpo_age %>%
+  mutate(Pop_age_distrib = as.factor(Pop_age_distrib))
+
+
+transpo_age <- transpo_age %>%
+  mutate(Pop_age_distrib = recode(Pop_age_distrib,
+                                  "Pop_0_14_percentage" = "Age: 0-14",
+                                  "Pop_15_59_percentage" = "Age: 15-59",
+                                  "Pop_60plus_percentage" = "Age: 60-plus"))
+transpo_age %>%
+  filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
+  plot_ly(x = ~ as.factor(Year), y = ~Percentage_age_distrib, color = ~Pop_age_distrib,
+          hoverinfo = "text",
+          text = ~paste("Year:", Year, "<br>",
+                        "Percentage Age distribution:", Percentage_age_distrib)) %>%
+  add_bars(colors = c("#d0d0d0", "#9d9d9d", "#595959")) %>%
+  layout(barmode = "dodge",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "% Population Age Distribution", showgrid = F),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+          color= "gray25",
+          size= 12)) 
+```
+
+### Estimated Projection World life expectancy at birth, 2022.
+
+```{r, echo=FALSE}
+
+ProjectedEstimLifeExp <- df_growth_ordered %>%
+  filter(Region == "Total, all countries or areas", Year == 2022) %>%
+  pull(Life_exp_at_birth_bothSex_inYears)
+
+valueBox(ProjectedEstimLifeExp,
+  caption= "World life expectancy at birth (2022), Projected estimate",
+  icon= "fa fa-heart-o")
+
+# growth_age_country %>%
+#   filter(Year != 2017) %>%
+#   group_by(Year) %>%
+#   summarize(MeanLE=mean(Life_exp_at_birth_bothSex_inYears, na.rm = TRUE)) %>%
+#   plot_ly(x = ~ as.factor(Year), y = ~ round(MeanLE, 2), hoverinfo = "text",
+#           text = ~paste("Year:", Year, "<br>",
+#                         "Life expectancy:", round(MeanLE, 2))) %>%
+#     add_bars(marker = list(color = "gray"),
+#              textposition = "none") %>% 
+#   layout(xaxis= list(title= "Year"),
+#          yaxis= list(title="World mean life expectancy at birth (years)",
+#                      showgrid = FALSE),
+#          plot_bgcolor= toRGB("gray95"),
+#          paper_bgcolor= toRGB("gray95"),
+#          title = "", font = list(family= "Bookman",
+#                                  color= "gray25",
+#                                  size= 12))  
+```
+
+
+### Life expectancy at birth, frequency for all countries (2022)
+
+```{r, echo=FALSE}
+
+growth_age_country %>%
+  filter(Year == 2022) %>%
+  plot_ly(x = ~ Life_exp_at_birth_bothSex_inYears) %>%
+  add_histogram(color = I("gray")) %>%
+  layout(plot_bgcolor= toRGB("gray95"),
+        paper_bgcolor= toRGB("gray95"),
+        font = list(family= "Bookman",
+        color= "gray25",
+        size= 12)) %>%
+  layout(
+    shapes = list(
+      list(
+        type = "line",
+        y0 = 0,
+        y1 = 1,
+        yref = "paper",
+        x0 = 74,
+        x1 = 74,
+        line = list(color = "gray25")
+      )
+    ),
+    yaxis = list(title = "Frequency (#)", showgrid = FALSE),
+    xaxis = list(title = "Life expectancy at birth (Years)"),
+    annotations = list(x = 69, y = 102.5,
+      text = "Median Life Expectancy
+             (74 years)",                
+      color= "gray25",
+      showarrow = FALSE,
+      size= 12),
+      font = list(family= "Bookman")
+    )
+```
+
+Column {data-width=600 .tabset}
+-----------------------------------------------------------------------
+
+### Highest and lowest age 60+ population percentage, 2022
+
+```{r, echo=FALSE}
+#POPULATION AGE DISTRIBUTION, transformation df and new column "Pop_15_59_percentage
+transpo_df <- transpo_df %>%
+  mutate(Pop_15_59_percentage= 100 - (Pop_0_14_percentage + Pop_60plus_percentage))
+
+#transformation df 
+transpo_age <- pivot_longer(data = transpo_df,
+                            cols = c(Pop_0_14_percentage, Pop_60plus_percentage, Pop_15_59_percentage),
+                            names_to = "Pop_age_distrib",
+                            values_to = "Percentage_age_distrib")
+
+#Pop_age_distrib into categorical
+transpo_age<- transpo_age %>%
+  mutate(Pop_age_distrib = as.factor(Pop_age_distrib))
+
+
+transpo_age <- transpo_age %>%
+  mutate(Pop_age_distrib = recode(Pop_age_distrib,
+                                  "Pop_0_14_percentage" = "Age: 0-14",
+                                  "Pop_15_59_percentage" = "Age: 15-59",
+                                  "Pop_60plus_percentage" = "Age: 60-plus"))
+
+age_country <- transpo_age[373:length(transpo_age$Population..density.and.surface.area),]
+
+Top_Bottom <- age_country %>%
+  filter(!is.na(Percentage_age_distrib)) %>% 
+  select(Year, Pop_age_distrib, Population..density.and.surface.area, Percentage_age_distrib) %>%
+  filter(Pop_age_distrib == "Age: 60-plus", Year == 2022) %>%
+  mutate(Rank = rank(desc(Percentage_age_distrib))) %>%
+  filter(Rank <= 20 | Rank > n() - 20) %>%
+   arrange(Percentage_age_distrib)
+
+palette <- brewer.pal(5, "RdYlBu")[-(2:4)]
+
+agedCountries <- Top_Bottom %>%
+  filter(!is.na(Percentage_age_distrib)) %>%
+  mutate(Population..density.and.surface.area = factor(Population..density.and.surface.area)) %>%
+  mutate(Population..density.and.surface.area = fct_reorder(Population..density.and.surface.area, Percentage_age_distrib, .desc = TRUE)) %>%
+  ggplot(aes(x = Percentage_age_distrib, y = Population..density.and.surface.area, color = Percentage_age_distrib)) +
+  geom_point(size = 6) +
+  geom_segment(aes(xend = 0, yend = Population..density.and.surface.area), linewidth = 2) +
+  geom_text(aes(label = Percentage_age_distrib), color = "black", size = 2.5) +
+  scale_color_gradientn(colors = palette) +
+  theme_classic() +
+  theme_gris() +
+  theme(
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    #plot.background = element_rect(color = "white")
+  ) +
+  geom_vline(xintercept = 13.9, color = "grey40", linetype = 3) +
+  annotate("text", x = 17, y = 30,
+           label = "The\nglobal\naverage",
+           vjust = 1, size = 3, color = "black") +
+  labs(x = "Percentage age distribution", color = "Percentage\npopulation\naged 60+")
+
+agedCountries
+
+ggplotly(agedCountries)
+
+```
+
+> Countries rank, showing highest and lowest percentage of population above 60 years.
+
+### Ranking (2022) showing life expectancy and fertility rate.
+
+```{r, echo=FALSE}
+rankCountries <- c("Uganda", "Zambia", "Qatar", "Chad", "United Arab Emirates", "Mali", 
+                   "Afghanistan", "Burundi", "Côte d’Ivoire", "Malawi","Niger", "Burkina Faso",
+                   "Central African Republic", "Somalia", "Yemen", "Cameroon", "Angola", "France",
+                   "San Marino", "Lithuania", "Bermuda", "China, Hong Kong SAR",  "Latvia", "Bulgaria",
+                   "Greece", "Isle of Man", "Croatia", "Finland", "Germany", "Portugal", "Italy",
+                   "Japan", "Saint Helena", "Monaco")
+rev_rankCountries <- rev(rankCountries)
+GAC <- growth_age_country %>%
+  filter(Region %in% rankCountries, Year == 2022) %>%
+  mutate(Region = factor(Region)) %>%
+  mutate(Region = factor(Region, levels = rev_rankCountries)) 
+g1 <- GAC %>%
+  plot_ly(x= ~ Percentage_age_distrib, y= ~Region, color= ~Pop_age_distrib) %>%
+  add_bars(colors =  c("#8e7ebf", "#6bbdb8", "#bd7bb1" )) %>%
+  layout(barmode = "stack",
+         xaxis = list(title = "Population Age distribution, 2022",
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12)))
+
+g2 <- GAC %>%
+  plot_ly(x = ~Life_exp_at_birth_bothSex_inYears, 
+          y = ~Region, 
+          type = 'scatter',
+          mode = 'markers',
+          size = ~ Tot_fert_rate_child_p_w,
+          hoverinfo = "text",
+          text = ~paste("Life expectancy: ", Life_exp_at_birth_bothSex_inYears, "<br>",
+                        "Country: ", Region, "<br>",
+                        "Fertility rate: ", Tot_fert_rate_child_p_w),
+          fill = ~"",
+          color = I("gray55"),
+          showlegend = FALSE,
+          marker = list(sidemode = 'diameter', name = ~Tot_fert_rate_child_p_w)) %>%
+          layout(xaxis = list(title = "Life expectancy at birth (years)"),
+                 plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+
+subplot(g2, g1, nrows =1, shareY = TRUE, titleX = T, titleY= F)
+
+# rankCountries <- c("Uganda", "Zambia", "Qatar", "Chad", "United Arab Emirates", "Mali", 
+#                    "Afghanistan", "Burundi", "Côte d’Ivoire", "Malawi","Niger", "Burkina Faso",
+#                    "Central African Republic", "Somalia", "Yemen", "Cameroon", "Angola", "France",
+#                    "San Marino", "Lithuania", "Bermuda", "China, Hong Kong SAR",  "Latvia", "Bulgaria",
+#                    "Greece", "Isle of Man", "Croatia", "Finland", "Germany", "Portugal", "Italy",
+#                    "Japan", "Saint Helena", "Monaco")
+# 
+# rev_rankCountries <- rev(rankCountries)
+# 
+# graph_LE <- growth_age_country %>%
+#   filter(Region %in% rankCountries, Year == 2022) %>%
+#   mutate(Region = factor(Region)) %>%
+#   mutate(Region = factor(Region, levels = rev_rankCountries)) %>%
+#   ggplot(aes(x= Percentage_age_distrib, y = Region, color = Life_exp_at_birth_bothSex_inYears, shape = Pop_age_distrib, size = Tot_fert_rate_child_p_w, text= paste( "% Age distribution:", Percentage_age_distrib, "<br>",
+#                           "Region:", Region, "<br>",
+#                           "Life Expectancy:", Life_exp_at_birth_bothSex_inYears, "<br>",
+#                           "Population age distribution:", Pop_age_distrib, "<br>",
+#                           "Fertility rate:", Tot_fert_rate_child_p_w))) +
+#   geom_point() +
+#   theme_classic() +
+#   theme_gris() +
+#   theme(axis.title.y = element_blank()) +
+#   labs(x = "Percent age distribution", color = "Life expectancy at birth (years)", shape = "Age range of the population",  size = "Fertility rate, total \n(live births per woman)")
+# 
+# 
+# ggplotly(graph_LE, tooltip = c("text"))
+
+
+           
+```
+
+
+GDP {data-navmenu=EconomicStats}
+====================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### World GDP per capita
+```{r, echo=FALSE}
+excluded_values <- c(1, 2, 15, 202, 14, 17, 18, 11, 19, 21, 419, 29, 13, 5, 142, 143, 30, 62, 35, 34, 145, 150, 151, 154, 39, 155, 158, 9, 53, 54, 57, 61)
+df_GDP_country<- df_GDP_ordered %>%
+    filter(!Code %in% excluded_values)
+df_GDP_Gross <- df_GDP_country %>%
+  inner_join(df_gValueAdded, by = c("Code", "Region", "Year"))
+```
+
+```{r, echo=FALSE}
+ df_GDP_Gross %>%
+    select(Region, Year, GDP_per_Cap_USD) %>%
+    mutate(hover = paste0(Region, "\n", GDP_per_Cap_USD)) %>%
+    plot_geo(locationmode= 'country names', 
+             frame = ~Year) %>%
+    add_trace(locations= ~Region,
+              z= ~GDP_per_Cap_USD,
+              zmin = 0,
+              zmax = max(df_GDP_Gross$GDP_per_Cap_USD, na.rm = TRUE),
+              color= ~GDP_per_Cap_USD,
+              colorscale= 'Electric',
+              colorbar = list(title = "GDP/capita in U$D"),
+              font = list(family = "Bookman", size = 12),
+              text = ~ hover,
+              hoverinfo = 'text') %>%
+    colorbar(title = "GDP/capita in U$D") %>%
+    layout(font = list(family= "Bookman",
+                       color= "gray25",
+                       size= 12)) %>%
+    style(hoverlabel = label)
+```
+### World GDP at current 2015 prices
+
+```{r, echo=FALSE}
+df_GDP_Gross %>%
+  select(Region, Year, GDP_in_current_prices_millions_USD) %>%
+  mutate(hover = paste0(Region, "\n", GDP_in_current_prices_millions_USD)) %>%
+  plot_geo(locationmode= 'country names', 
+           frame = ~Year) %>%
+  add_trace(locations= ~Region,
+            z= ~GDP_in_current_prices_millions_USD,
+            zmin = 0,
+            zmax = max(df_GDP_Gross$GDP_in_current_prices_millions_USD, na.rm = TRUE),
+            color= ~GDP_in_current_prices_millions_USD,
+            colorscale= 'Electric',
+            colorbar = list(title = "GDP at current prices\nin millions of U$D"),
+            font = list(family = "Bookman", size = 12),
+            text = ~ hover,
+            hoverinfo = 'text') %>%
+  layout(font = list(family= "Bookman",
+                     color= "gray25",
+                     size= 12)) %>%
+  style(hoverlabel = label)
+```
+
+### World GDP at constant 2015 prices  
+
+```{r, echo=FALSE}
+df_GDP_Gross %>%
+  select(Region, Year, GDP_in_cte_2010_prices_millionsUSD) %>%
+  mutate(hover = paste0(Region, "\n", GDP_in_cte_2010_prices_millionsUSD)) %>%
+  plot_geo(locationmode= 'country names', 
+           frame = ~Year) %>%
+  add_trace(locations= ~Region,
+            z= ~GDP_in_cte_2010_prices_millionsUSD,
+            zmin = 0,
+            zmax = max(df_GDP_Gross$GDP_in_cte_2010_prices_millionsUSD, na.rm = TRUE),
+            color= ~GDP_in_cte_2010_prices_millionsUSD,
+            colorscale= 'Electric',
+            colorbar = list(title = "GDP at constant 2015\nprices in millions of U$D"),
+            font = list(family = "Bookman", size = 12),
+            text = ~ hover,
+            hoverinfo = 'text') %>%
+   layout(font = list(family= "Bookman",
+                     color= "gray25",
+                     size= 12)) %>%
+  style(hoverlabel = label)
+```
+GDP gross value added {data-navmenu=EconomicStats}
+====================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Gross Value added
+
+```{r, echo=FALSE}
+agriculture <- df_GDP_Gross %>%
+  filter(GrossValueAddedPerc == "Agriculture, hunting, forestry and fishing (% of gross value added)") %>%
+  plot_ly(x =~GDP_per_Cap_USD, y= ~Percentage_distribution,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Agriculture% of gross value added: ", Percentage_distribution, "<br>",
+                        "Country: ", Region)) %>%
+  add_markers(color= ~Region, frame = ~Year, ids=~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"),
+         yaxis = list(title = "Agriculture, hunting, forestry and fishing \n(% of gross value added)", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+
+industry <- df_GDP_Gross %>%
+  filter(GrossValueAddedPerc == "Industry (% of gross value added)") %>%
+  plot_ly(x =~GDP_per_Cap_USD, y= ~Percentage_distribution,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Industry (% of gross value added): ", Percentage_distribution, "<br>",
+                        "Country: ", Region)) %>%
+  add_markers(color= ~Region, frame = ~Year, ids=~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"
+                      ),
+         yaxis = list(title = "Industry \n(% of gross value added)", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+
+services<- df_GDP_Gross %>%
+  filter(GrossValueAddedPerc == "Services (% of gross value added)") %>%
+  plot_ly(x =~GDP_per_Cap_USD, y= ~Percentage_distribution,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Services (% of gross value added): ", Percentage_distribution, "<br>",
+                        "Country: ", Region)) %>%
+  add_markers(color= ~Region, frame = ~Year, ids=~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"),
+         yaxis = list(title = "Services \n(% of gross value added)", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+subplot(agriculture, industry, services, titleX = TRUE, titleY = TRUE) %>%
+  highlight(on = "plotly_selected", off = 'plotly_deselect')
+```
+
+
+
+GDP/Life {data-navmenu=EconomicStats}
+====================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Life expectancy increses in countries with higher GDP per capita
+
+```{r, echo=FALSE}
+df_GDPgrowth <- df_GDP_ordered %>%
+  inner_join(df_growth_ordered, by = c("Code", "Region", "Year"))
+
+df_GDPgrowth %>%
+  filter(!Code %in% excluded_values) %>%
+  plot_ly(x =~GDP_per_Cap_USD, y = ~Life_exp_at_birth_bothSex_inYears,  alpha = 0.8,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Life exp: ", Life_exp_at_birth_bothSex_inYears, "<br>",
+                        "Country: ", Region, "<br>",
+                        "Year: ", Year)) %>%
+  add_markers(color =~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"),
+         yaxis = list(title = "Life expectancy in Years", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+```
+
+### Countries with highers GDP, show lower maternal and infant mortality rates
+
+```{r, echo=FALSE}
+shared_gdp <- df_GDPgrowth %>%
+  filter(!Code %in% excluded_values) %>%
+  SharedData$new()
+
+maternal <- shared_gdp %>%
+  plot_ly(x =~GDP_per_Cap_USD, y = ~Mat_mort_ratio_death_p_100000_population,  alpha = 0.8,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Maternal mortality rates: ", Life_exp_at_birth_bothSex_inYears, "<br>",
+                        "Country: ", Region, "<br>",
+                        "Year: ", Year)) %>%
+  add_markers(color =~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"),
+         yaxis = list(title = "Maternal mortality rates \nper live births) per 100.000", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+
+infant <- shared_gdp %>%
+  plot_ly(x =~GDP_per_Cap_USD, y = ~Infant_mort_f_both_sex_p_thousen_live_birth,  alpha = 0.5,
+          hoverinfo = "text",
+          text = ~paste("GDP per cap: ", GDP_per_Cap_USD, "<br>",
+                        "Infant mortality rates: ", Infant_mort_f_both_sex_p_thousen_live_birth, "<br>",
+                        "Country: ", Region, "<br>",
+                        "Year: ", Year)) %>%
+  add_markers(color =~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type="log"),
+         yaxis = list(title = "Infant mortality rates \nper 100.000 live births", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12))
+
+subplot(maternal, infant, titleX = TRUE, titleY = TRUE) %>%
+  highlight(on = "plotly_selected", off = 'plotly_deselect')
+```
+
+GDP/CO2 {data-navmenu=EconomicStats}
+====================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Countries with higher GDP per capita, have higher impact on CO2 emissions
+
+```{r, echo=FALSE}
+CO2_GDP%>%
+  plot_ly(x = ~GDP_per_Cap_USD, y = ~Emissions_per_capita_metric_tons_CO, alpha= 0.8,
+    hoverinfo = "text",
+    text = ~paste("GDP/cap: ", GDP_per_Cap_USD, "<br>",
+              "Emissions/capita CO2: ", Emissions_per_capita_metric_tons_CO, "<br>",
+              "Country: ", Region)) %>%
+  add_text(x = 1600, y =20, text = ~Year, frame= ~Year,
+           textfont= list(size= 200, color= toRGB("gray80"))) %>%
+  add_markers(color= ~Region, frame = ~Year, ids=~Region) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type = "log"),
+         yaxis = list(title = "Emissions per capita (metric tons of carbon dioxide)", showgrid = FALSE),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12)) %>%
+  animation_opts(frame = 1000,
+                 transition = 800,
+                 easing = "linear",
+                 redraw = TRUE) %>%
+  animation_slider(hide= F)
+```
+
+
+GDP/Research {data-navmenu=EconomicStats}
+====================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Population employed in research and developmen
+
+```{r, echo=FALSE}
+Research_GDP_pop %>%
+  plot_ly(x=~GDP_per_Cap_USD, y=~RD_personnel_Researchers_total, alpha= 0.8,
+          hoverinfo = "text",
+          text = ~paste("GDP/cap: ", GDP_per_Cap_USD, "<br>",
+                        "Total R&D researchers: ", RD_personnel_Researchers_total, "<br>",
+                        "Country: ", Region, "<br>",
+                        "Population (in millions): ", Total_Pop_midyear_estimates_millions)) %>%
+  add_text(x = 1600, y =1000, text = ~Year, frame= ~Year,
+           textfont= list(size= 200, color= toRGB("gray80"))) %>%
+  add_markers(color= ~Region, frame = ~Year, ids=~Region,
+              size=~Total_Pop_midyear_estimates_millions,
+              marker= list(opacity=0.6,
+                           sizemode= "diameter",
+                           sizeref= 2)) %>%
+  layout(xaxis = list(title = "GDP per capita in U$D (log scale)", showgrid= F, type = "log"),
+         yaxis = list(title = "Total R&D researchers personnel (log scale)", showgrid = FALSE, type= "log"),
+         plot_bgcolor= toRGB("gray95"),
+         paper_bgcolor= toRGB("gray95"),
+         title = "", font = list(family= "Bookman",
+                                 color= "gray25",
+                                 size= 12)) %>%
+  animation_opts(frame = 1000,
+                 transition = 800,
+                 easing = "linear")
+
+```
