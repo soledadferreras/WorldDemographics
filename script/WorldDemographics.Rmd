@@ -8,7 +8,7 @@ output:
     
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo =FALSE}
 library(flexdashboard)
 library(readr)
 library(plotly)
@@ -21,7 +21,7 @@ library(ggthemes)
 library(extrafont)
 ```
 
-```{r, datasets}
+```{r, datasets, echo =FALSE}
 #Data frame Population
 file_Pop<- "C:\\Users\\chole\\Documents\\CV 2019\\2023\\Portfolio\\WorldDemographics\\Data\\Population_surface_area_density.csv"
 PopDenSurf<- read.csv(file_Pop)
@@ -48,7 +48,7 @@ df_CO2 <- read.csv(file_CO2, header = TRUE)
 
 ```
 
-```{r, data cleaning, echo=FALSE}
+```{r, data cleaning, echo =FALSE}
 df_GDP <- df_GDP %>%
   select(-'X.3', -'X.4') %>%
   rename(Code = 'T14',
@@ -56,7 +56,7 @@ df_GDP <- df_GDP %>%
          Year= 'X',
          GDP = 'X.1',
          Value = 'X.2')
-str(df_GDP)
+
 
 df_GDP <- df_GDP[2:length(df_GDP$Code),]
 
@@ -68,7 +68,7 @@ df_GDP <- df_GDP %>%
 df_GDP_ordered <- df_GDP %>%
  pivot_wider(names_from = GDP, values_from = Value)
 
-str(df_GDP_ordered)
+
 
 df_GDP_ordered <- df_GDP_ordered %>%
   rename(GDP_in_current_prices_millions_USD = "GDP in current prices (millions of US dollars)",
@@ -110,7 +110,7 @@ new_names <- c(
 levels(PopDenSurf$Metric) <- new_names
 
 # Verify the updated levels
-levels(PopDenSurf$Metric)
+#levels(PopDenSurf$Metric)
 # convert Metric levels into columns
 transpo_df <- 
 PopDenSurf %>%
@@ -128,7 +128,7 @@ df_growth <- df_growth[2:length(df_growth$T04),]
 df_growth_ordered <- df_growth %>%
   select(-X.3, -X.4)%>%
   pivot_wider(names_from = X.1, values_from = X.2)
-str(df_growth_ordered)
+#str(df_growth_ordered)
 #Rename Variables
 df_growth_ordered <- df_growth_ordered %>%
   rename(
@@ -272,7 +272,7 @@ Column {data-width=700 .tabset}
 
 ### World Population 2022
 
-```{r, echo=FALSE}
+```{r, World map, echo =FALSE}
 #CHORPLETH WORLD MAP, year2022, Total Population
 #OPTION 1
 # Creating a new DF only with countries (all regions are excluded)
@@ -313,7 +313,7 @@ Statistics]
 
 ### World Population density (per km²), 2022
 
-```{r, echo=FALSE}
+```{r, worldPopDen, echo =FALSE}
 label<-list(bordercolor = "transparent",
             bgcolor = "#EEEEEE",
             font =fontStyle)
@@ -395,7 +395,7 @@ transpo_Countries %>%
 
 ### Territories with highest and lowest population density per km²
 
-```{r, echo=FALSE}
+```{r, hightLowDens, echo =FALSE}
 SuperSubpobl <- transpo_Countries %>%
     select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
     mutate(logDenKm = log10(Pop_density_per_km)) %>%
@@ -422,7 +422,7 @@ Column {data-width=300}
 
 ### World Population 2022
 
-```{r, echo=FALSE}
+```{r, worldPop, echo =FALSE}
 WorldPop22 <-  transpo_df %>% 
               filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
               pull(Total_Pop_midyear_estimates_millions)
@@ -434,7 +434,7 @@ valueBox(WorldPop22,
 
 ### Estimated World Population over time
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 transpo_df %>%
   filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
   plot_ly(x = ~ as.factor(Year), y = ~ Total_Pop_midyear_estimates_millions,
@@ -457,7 +457,7 @@ transpo_df %>%
 
 ### World growth rate
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 pop2022 <-  transpo_df %>% 
               filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
               pull(Total_Pop_midyear_estimates_millions)
@@ -477,7 +477,7 @@ Population by Gender {data-navmenu=Population}
 Column {data-width=350}
 -----------------------------------------------------------------------
 ### World Population by gender.
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 transpo_sex %>%
   filter(Population..density.and.surface.area == "Total, all countries or areas") %>%
   mutate(Sex = fct_recode(Sex,
@@ -505,7 +505,7 @@ transpo_sex %>%
 
 ### World Sex ratio Males per 100 Females, 2022.
 
-```{r sex_ratio_males_per_women, echo=FALSE}
+```{r sex_ratio_males_per_women, echo =FALSE}
 SexRatio <- transpo_df %>%
   filter(Population..density.and.surface.area == "Total, all countries or areas", Year == 2022) %>%
   pull(Sex_ratio_males_per_100_females)
@@ -535,7 +535,7 @@ valueBox(SexRatio,
 ```
 ### World Life expectancy by gender.
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 LifeExpBySex_df <- pivot_longer(data = df_growth_ordered,
                             cols = c(Life_exp_at_birth_Males, Life_exp_at_birth_Females),
                             names_to = "Sex_Life_exp",
@@ -567,7 +567,7 @@ Column {data-width=650}
 -----------------------------------------------------------------------
 
 ### Countries with highest and lowest males/females ratios, 2022.
-```{r topMalesTopfem, echo=FALSE}
+```{r topMalesTopfem, echo =FALSE}
 theme_gris <- function(){
 theme_minimal() +
 theme(
@@ -621,7 +621,7 @@ Column {data-width=400}
 
 ### World Age Distribution Percentage over time
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 #POPULATION AGE DISTRIBUTION, transformation df and new column "Pop_15_59_percentage
 transpo_df <- transpo_df %>%
   mutate(Pop_15_59_percentage= 100 - (Pop_0_14_percentage + Pop_60plus_percentage))
@@ -661,7 +661,7 @@ transpo_age %>%
 
 ### Estimated Projection World life expectancy at birth, 2022.
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 
 ProjectedEstimLifeExp <- df_growth_ordered %>%
   filter(Region == "Total, all countries or areas", Year == 2022) %>%
@@ -693,7 +693,7 @@ valueBox(ProjectedEstimLifeExp,
 
 ### Life expectancy at birth, frequency for all countries (2022)
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 
 growth_age_country %>%
   filter(Year == 2022) %>%
@@ -733,7 +733,7 @@ Column {data-width=600 .tabset}
 
 ### Highest and lowest age 60+ population percentage, 2022
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 #POPULATION AGE DISTRIBUTION, transformation df and new column "Pop_15_59_percentage
 transpo_df <- transpo_df %>%
   mutate(Pop_15_59_percentage= 100 - (Pop_0_14_percentage + Pop_60plus_percentage))
@@ -801,7 +801,7 @@ ggplotly(agedCountries)
 
 ### Ranking (2022) showing life expectancy and fertility rate.
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 rankCountries <- c("Uganda", "Zambia", "Qatar", "Chad", "United Arab Emirates", "Mali", 
                    "Afghanistan", "Burundi", "Côte d’Ivoire", "Malawi","Niger", "Burkina Faso",
                    "Central African Republic", "Somalia", "Yemen", "Cameroon", "Angola", "France",
@@ -886,7 +886,7 @@ Column {.tabset}
 -----------------------------------------------------------------------
 
 ### World GDP per capita
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 excluded_values <- c(1, 2, 15, 202, 14, 17, 18, 11, 19, 21, 419, 29, 13, 5, 142, 143, 30, 62, 35, 34, 145, 150, 151, 154, 39, 155, 158, 9, 53, 54, 57, 61)
 df_GDP_country<- df_GDP_ordered %>%
     filter(!Code %in% excluded_values)
@@ -894,7 +894,7 @@ df_GDP_Gross <- df_GDP_country %>%
   inner_join(df_gValueAdded, by = c("Code", "Region", "Year"))
 ```
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
  df_GDP_Gross %>%
     select(Region, Year, GDP_per_Cap_USD) %>%
     mutate(hover = paste0(Region, "\n", GDP_per_Cap_USD)) %>%
@@ -918,7 +918,7 @@ df_GDP_Gross <- df_GDP_country %>%
 ```
 ### World GDP at current 2015 prices
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 df_GDP_Gross %>%
   select(Region, Year, GDP_in_current_prices_millions_USD) %>%
   mutate(hover = paste0(Region, "\n", GDP_in_current_prices_millions_USD)) %>%
@@ -942,7 +942,7 @@ df_GDP_Gross %>%
 
 ### World GDP at constant 2015 prices  
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 df_GDP_Gross %>%
   select(Region, Year, GDP_in_cte_2010_prices_millionsUSD) %>%
   mutate(hover = paste0(Region, "\n", GDP_in_cte_2010_prices_millionsUSD)) %>%
@@ -971,7 +971,7 @@ Column {.tabset}
 
 ### Gross Value added
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 agriculture <- df_GDP_Gross %>%
   filter(GrossValueAddedPerc == "Agriculture, hunting, forestry and fishing (% of gross value added)") %>%
   plot_ly(x =~GDP_per_Cap_USD, y= ~Percentage_distribution,
@@ -1034,7 +1034,7 @@ Column {.tabset}
 
 ### Life expectancy increses in countries with higher GDP per capita
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 df_GDPgrowth <- df_GDP_ordered %>%
   inner_join(df_growth_ordered, by = c("Code", "Region", "Year"))
 
@@ -1058,7 +1058,7 @@ df_GDPgrowth %>%
 
 ### Countries with highers GDP, show lower maternal and infant mortality rates
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 shared_gdp <- df_GDPgrowth %>%
   filter(!Code %in% excluded_values) %>%
   SharedData$new()
@@ -1107,7 +1107,7 @@ Column {.tabset}
 
 ### Countries with higher GDP per capita, have higher impact on CO2 emissions
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 CO2_GDP%>%
   plot_ly(x = ~GDP_per_Cap_USD, y = ~Emissions_per_capita_metric_tons_CO, alpha= 0.8,
     hoverinfo = "text",
@@ -1140,7 +1140,7 @@ Column {.tabset}
 
 ### Population employed in research and developmen
 
-```{r, echo=FALSE}
+```{r, echo =FALSE}
 Research_GDP_pop %>%
   plot_ly(x=~GDP_per_Cap_USD, y=~RD_personnel_Researchers_total, alpha= 0.8,
           hoverinfo = "text",
