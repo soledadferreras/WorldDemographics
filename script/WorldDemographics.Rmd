@@ -4,6 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    source_code: "https://github.com/soledadferreras/WorldDemographics"
     theme : "spacelab"
     
 ---
@@ -19,6 +20,7 @@ library(RColorBrewer)
 library(crosstalk)
 library(ggthemes)
 library(extrafont)
+library(paletteer)
 ```
 
 ```{r, datasets, echo =FALSE}
@@ -294,11 +296,12 @@ transpo_Countries %>%
   filter(!Year == "2017") %>%
   mutate(hover = paste0(Population..density.and.surface.area, "\n", Total_Pop_midyear_estimates_millions)) %>%
   plot_geo(locationmode= 'country names', 
-           frame = ~Year) %>%
+           frame = ~Year,  reversescale = T) %>%
   add_trace(z= ~Total_Pop_midyear_estimates_millions,
             zmin = 0,
             zmax = max(transpo_Countries$Total_Pop_midyear_estimates_millions, na.rm = TRUE),
             locations= ~Population..density.and.surface.area,
+            colorscale = "YIOrRd",
             colorbar= list(title= "Population in millions"),
             text = ~ hover,
             hoverinfo = 'text') %>%
@@ -322,14 +325,14 @@ transpo_Countries %>%
   select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
   filter(Year == 2022) %>%
   # mutate(hover = paste0(Population..density.and.surface.area, "\n", round(log10(Pop_density_per_km), 2))) %>%
-  plot_geo(locationmode = "country names") %>%
+  plot_geo(locationmode = "country names",  reversescale = T) %>%
   add_trace(
     z = ~log10(Pop_density_per_km),
     locations = ~Population..density.and.surface.area,
     visible = F,
     # text = ~hover,
     # hoverinfo = 'text',
-    colorscale = "Viridis",
+    colorscale = "YIOrRd",
     colorbar = list(
       title = "Log10(Population <br> Density per km²)",
       font = list(family = "Bookman", size = 12)
@@ -341,7 +344,7 @@ transpo_Countries %>%
     visible = F,
     # text = ~hover,
     # hoverinfo = 'text',
-    colorscale = "Viridis",
+    colorscale = "YIOrRd",
     colorbar = list(
       title = "Population <br> Density per km²",
       font = list(family = "Bookman", size = 12)
@@ -396,6 +399,7 @@ transpo_Countries %>%
 ### Territories with highest and lowest population density per km²
 
 ```{r, hightLowDens, echo =FALSE}
+
 SuperSubpobl <- transpo_Countries %>%
     select(Population..density.and.surface.area, Year, Pop_density_per_km) %>%
     mutate(logDenKm = log10(Pop_density_per_km)) %>%
